@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from examples.arxiv_fetcher_example_correct import fetch_papers_for_date, create_mock_papers
+from examples.arxiv_fetcher_example import fetch_papers_for_date, create_mock_papers
 from examples.html_parser_example import parse_arxiv_html, demo_with_mock_data
 from examples.rss_generator_example import generate_rss_with_mock_data
 
