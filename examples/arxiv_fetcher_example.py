@@ -6,20 +6,20 @@ from zoneinfo import ZoneInfo
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from src.arxiv_fetcher import CATEGORIES
+from src.arxiv_fetcher import CATEGORIES, BASE_URL, fetch_new_papers
 import requests
 import feedparser
 
-logging.basicConfig(level=logging.INFO, 
+logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
 
 def fetch_papers_for_date(target_date_str):
     """
-    Fetch papers from arXiv for a specific date.
-    
+    Fetch papers from arXiv for a specific date using the src.arxiv_fetcher module.
+
     Args:
         target_date_str: Date string in format YYYY/MM/DD
-    
+
     Returns:
         List of paper dictionaries
     """
@@ -31,15 +31,11 @@ def fetch_papers_for_date(target_date_str):
     start_str = f"{target_date.year}{target_date.month:02d}{target_date.day:02d}0100"
     end_str = f"{next_date.year}{next_date.month:02d}{next_date.day:02d}0100"
     
-    date_url = ("http://export.arxiv.org/api/query?"
-                "search_query=cat:{cat}+AND+submittedDate:[{start}+TO+{end}]"
-                "&start=0&max_results=100")
-    
     logging.info(f"Query date range: {start_str} to {end_str}")
     
     papers = []
     for cat in CATEGORIES:
-        url = date_url.format(cat=cat, start=start_str, end=end_str)
+        url = BASE_URL.format(cat=cat, start=start_str, end=end_str)
         logging.info(f"Fetching from URL: {url}")
         
         try:
@@ -67,24 +63,24 @@ def fetch_papers_for_date(target_date_str):
 def create_mock_papers(target_date_str):
     """
     Create mock paper data for demonstration when real data is not available.
-    
+
     Args:
         target_date_str: Date string in format YYYY/MM/DD
-    
+
     Returns:
         List of mock paper dictionaries
     """
     year, month, day = map(int, target_date_str.split('/'))
     base_date = dt.datetime(year, month, day, tzinfo=dt.timezone.utc)
-    
+
     logging.info(f"Creating mock data for date: {target_date_str}")
-    
+
     mock_papers = []
     for i, cat in enumerate(CATEGORIES):
         for j in range(2):
             paper_id = f"{year}{month:02d}.{10000 + i*10 + j}"
             paper_date = base_date + dt.timedelta(hours=i*2 + j)
-            
+
             paper = {
                 "id": paper_id,
                 "title": f"Mock Paper {i*2+j+1}: {cat} Research on {target_date_str}",
@@ -95,21 +91,45 @@ def create_mock_papers(target_date_str):
                 "updated": paper_date.strftime("%Y-%m-%dT%H:%M:%SZ")
             }
             mock_papers.append(paper)
-    
+
     logging.info(f"Created {len(mock_papers)} mock papers")
     return mock_papers
 
+def fetch_papers_using_src_module(target_date_str=None):
+    """
+    Demonstrate using the src.arxiv_fetcher module directly.
+    
+    Args:
+        target_date_str: Optional date string in format YYYY/MM/DD.
+                         If None, uses the current date.
+    
+    Returns:
+        List of paper dictionaries
+    """
+    logging.info("Using src.arxiv_fetcher.fetch_new_papers() directly")
+    
+    papers = fetch_new_papers()
+    
+    logging.info(f"Fetched {len(papers)} papers using src.arxiv_fetcher module")
+    return papers
+
 if __name__ == "__main__":
+    print("\n=== Example 1: Using src.arxiv_fetcher module directly ===")
+    papers_from_src = fetch_papers_using_src_module()
+    
+    print("\n=== Example 2: Using wrapper for specific date ===")
     target_date = "2025/5/1"
-    papers = fetch_papers_for_date(target_date)
+    papers_for_date = fetch_papers_for_date(target_date)
+    
+    papers = papers_for_date if papers_for_date else papers_from_src
     
     if not papers:
-        logging.info("No papers found for %s, using mock data", target_date)
+        logging.info("No papers found, using mock data")
         papers = create_mock_papers(target_date)
     
-    print(f"\nSample of papers fetched for {target_date}:")
-    for i, paper in enumerate(papers[:3], 1):
-        print(f"\n--- Paper {i} ---")
+    print(f"\nSample of papers fetched:")
+    for i, paper in enumerate(papers[:5]):
+        print(f"\n--- Paper {i+1} ---")
         print(f"Title: {paper['title']}")
         print(f"Authors: {', '.join(paper['authors'])}")
         print(f"Category: {paper['category']}")
