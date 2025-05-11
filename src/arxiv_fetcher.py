@@ -15,15 +15,15 @@ JST = ZoneInfo("Asia/Tokyo")
 
 def _jst_range_for_last_cycle(now_utc: dt.datetime) -> tuple[int, int]:
     """
-    arXiv は JST9:00 更新。9:00 ～ 翌 9:00 の 24h を 1 サイクルと定義し、
+    arXiv は JST10:00 更新。10:00 ～ 翌 10:00 の 24h を 1 サイクルと定義し、
     直近終了したサイクルを返す。
     """
     now_jst = now_utc.astimezone(JST)
-    today9  = now_jst.replace(hour=9, minute=0, second=0, microsecond=0)
-    if now_jst < today9:
-        end   = today9
+    today10 = now_jst.replace(hour=10, minute=0, second=0, microsecond=0)
+    if now_jst < today10:
+        end   = today10
     else:
-        end   = today9 + dt.timedelta(days=1)
+        end   = today10 + dt.timedelta(days=1)
     start = end - dt.timedelta(days=1)
     return int(start.timestamp()), int(end.timestamp())
 

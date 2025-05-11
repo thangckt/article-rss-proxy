@@ -2,34 +2,51 @@ from feedgen.feed import FeedGenerator
 from typing import List, Dict
 import pathlib, datetime as dt, logging
 
-def _format_description(paper: Dict) -> str:
+def _format_paper_entry(paper: Dict, with_translation: bool = False) -> str:
+    """Format a single paper entry for the RSS feed description."""
     parts = [
-        paper["title"],
-        "",
-        paper["summary_ja"],
+        f"[{paper['title']}]({paper['link']})",
         ""
     ]
-    if paper["figs"]:
-        fig = paper["figs"][0]
-        parts.extend([f'<img src="{fig["src"]}" alt="Figure 1" />', "", fig["caption"], ""])
-    parts.append("著者: " + ", ".join(paper["authors"]))
-    parts.append("所属: " + ", ".join(paper["affils"]))
+    
+    if with_translation and "summary_ja" in paper:
+        parts.append(paper["summary_ja"])
+    else:
+        parts.append(paper["summary"])
+        
+    parts.append("")
     return "\n".join(parts)
 
-def generate(papers: List[Dict], path: str):
+def _format_feed_description(filtered_papers: List[Dict], other_papers: List[Dict]) -> str:
+    """Format the entire feed description with all papers."""
+    parts = ["## AI4Science に関連する論文", ""]
+    
+    for p in filtered_papers:
+        parts.append(_format_paper_entry(p, with_translation=True))
+        parts.append("---")
+        
+    parts.append("")
+    parts.append("## その他の論文", "")
+    
+    for p in other_papers:
+        parts.append(_format_paper_entry(p, with_translation=False))
+        parts.append("---")
+        
+    return "\n".join(parts)
+
+def generate(filtered_papers: List[Dict], other_papers: List[Dict], path: str):
     fg = FeedGenerator()
     fg.id("https://example.com/arxiv_ai4sci_rss")
-    fg.title("Daily arXiv AI4Science (JST)")
+    fg.title("arXiv today filtered")
     fg.link(href="https://arxiv.org", rel="alternate")
     fg.language("ja")
 
-    for p in papers:
-        fe = fg.add_entry()
-        fe.id(p["id"])
-        fe.title(p["title"])
-        fe.link(href=p["link"])
-        fe.pubDate(p["updated"])
-        fe.description(_format_description(p))
+    fe = fg.add_entry()
+    fe.id("daily-arxiv-" + dt.datetime.now().strftime("%Y-%m-%d"))
+    fe.title(f"arXiv 論文リスト {dt.datetime.now().strftime('%Y-%m-%d')}")
+    fe.link(href="https://arxiv.org")
+    fe.pubDate(dt.datetime.now())
+    fe.description(_format_feed_description(filtered_papers, other_papers))
 
     out = pathlib.Path(path)
     out.parent.mkdir(parents=True, exist_ok=True)

@@ -15,17 +15,24 @@ OUTPUT = os.getenv("RSS_OUTPUT_PATH", "docs/index.xml")
 def main():
     raw = fetch_new_papers()
     logging.info("Filtering with Gemini …")
-    filtered = [p for p in raw if is_relevant(p)]
-    logging.info("Remaining after filter: %s", len(filtered))
-
-    for p in filtered:
-        p["summary_ja"] = translate_abstract(p)
-        extra = extract(p["id"])
-        p["authors"] = extra["authors"] or p["authors"]
-        p["affils"]  = extra["affils"]
-        p["figs"]    = extra["figs"]
-
-    generate(filtered, OUTPUT)
+    
+    filtered = []
+    others = []
+    
+    for p in raw:
+        if is_relevant(p):
+            filtered.append(p)
+            p["summary_ja"] = translate_abstract(p)
+            extra = extract(p["id"])
+            p["authors"] = extra["authors"] or p["authors"]
+            p["affils"] = extra["affils"]
+            p["figs"] = extra["figs"]
+        else:
+            others.append(p)
+            
+    logging.info("Papers after filter: %s filtered, %s others", len(filtered), len(others))
+    
+    generate(filtered, others, OUTPUT)
 
 if __name__ == "__main__":
     main()
