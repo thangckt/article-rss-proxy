@@ -15,7 +15,6 @@ def _get_html_soup(arxiv_id: str) -> Tuple[int, BeautifulSoup]:
 def extract(arxiv_id: str) -> Dict:
     status, soup = _get_html_soup(arxiv_id)
     if status != 200:
-        logging.warning(f"Failed to get HTML for paper {arxiv_id}, status: {status}")
         return {"figs": [], "authors": [], "affils": []}
 
     figs = []

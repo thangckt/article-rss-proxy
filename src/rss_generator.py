@@ -17,18 +17,11 @@ def _format_paper_entry(paper: Dict, with_translation: bool = False) -> str:
     parts.append("")
     return "\n".join(parts)
 
-def _format_feed_description(filtered_papers: List[Dict], other_papers: List[Dict]) -> str:
-    """Format the entire feed description with all papers."""
-    parts = ["## AI4Science に関連する論文", ""]
+def _format_other_papers_description(papers: List[Dict]) -> str:
+    """Format a description containing all non-filtered papers."""
+    parts = []
     
-    for p in filtered_papers:
-        parts.append(_format_paper_entry(p, with_translation=True))
-        parts.append("---")
-        
-    parts.append("")
-    parts.append("## その他の論文", "")
-    
-    for p in other_papers:
+    for p in papers:
         parts.append(_format_paper_entry(p, with_translation=False))
         parts.append("---")
         
@@ -41,12 +34,21 @@ def generate(filtered_papers: List[Dict], other_papers: List[Dict], path: str):
     fg.link(href="https://arxiv.org", rel="alternate")
     fg.language("ja")
 
-    fe = fg.add_entry()
-    fe.id("daily-arxiv-" + dt.datetime.now().strftime("%Y-%m-%d"))
-    fe.title(f"arXiv 論文リスト {dt.datetime.now().strftime('%Y-%m-%d')}")
-    fe.link(href="https://arxiv.org")
-    fe.pubDate(dt.datetime.now())
-    fe.description(_format_feed_description(filtered_papers, other_papers))
+    for p in filtered_papers:
+        fe = fg.add_entry()
+        fe.id(p["id"])
+        fe.title(p["title"])
+        fe.link(href=p["link"])
+        fe.pubDate(p["updated"])
+        fe.description(_format_paper_entry(p, with_translation=True))
+
+    if other_papers:
+        fe = fg.add_entry()
+        fe.id("other-papers-" + dt.datetime.now().strftime("%Y-%m-%d"))
+        fe.title(f"その他の論文 {dt.datetime.now().strftime('%Y-%m-%d')}")
+        fe.link(href="https://arxiv.org")
+        fe.pubDate(dt.datetime.now())
+        fe.description(_format_other_papers_description(other_papers))
 
     out = pathlib.Path(path)
     out.parent.mkdir(parents=True, exist_ok=True)
