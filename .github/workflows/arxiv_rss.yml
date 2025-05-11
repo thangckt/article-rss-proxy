@@ -1,0 +1,38 @@
+name: arXiv daily RSS
+
+on:
+  schedule:
+    # 11:00 JST = 02:00 UTC
+    - cron:  '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    env:
+      TZ: Asia/Tokyo
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install deps
+        run: |
+          python -m pip install -r requirements-lock.txt
+
+      - name: Run generator
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          python -m src.main
+
+      # 生成ファイルをコミット（GitHub Pages ブランチを main にしている例）
+      - name: Commit & push RSS
+        uses: EndBug/add-and-commit@v9
+        with:
+          add: 'docs/index.xml'
+          default_author: github_actions
+          message: 'chore: update RSS feed'
