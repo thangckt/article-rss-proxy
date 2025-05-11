@@ -38,12 +38,22 @@ def fetch_new_papers() -> List[Dict]:
     logging.info("Using query format: submittedDate:[%s+TO+%s]", start_str, end_str)
     
     papers: List[Dict] = []
+    seen_ids = set()  # Track seen paper IDs to avoid duplicates
+    
     for cat in CATEGORIES:
         url = BASE_URL.format(cat=cat, start=start_str, end=end_str)
         feed = feedparser.parse(requests.get(url, timeout=30).text)
+        
+        category_papers = 0
         for entry in feed.entries:
+            paper_id = entry.id.split('/')[-1]
+            
+            if paper_id in seen_ids:
+                continue
+                
+            seen_ids.add(paper_id)
             papers.append({
-                "id":      entry.id.split('/')[-1],
+                "id":      paper_id,
                 "title":   entry.title.strip(),
                 "link":    entry.link,
                 "summary": entry.summary.strip(),
@@ -51,7 +61,10 @@ def fetch_new_papers() -> List[Dict]:
                 "category": cat,
                 "updated": entry.updated
             })
-        logging.info("Fetched %s papers for category %s", len(feed.entries), cat)
+            category_papers += 1
+            
+        logging.info("Fetched %s papers for category %s (%s unique)", 
+                    len(feed.entries), cat, category_papers)
     
     logging.info("Total papers fetched: %s", len(papers))
     return papers
