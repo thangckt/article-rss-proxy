@@ -8,23 +8,23 @@ def _format_paper_entry(paper: Dict, with_translation: bool = False) -> str:
         f"[{paper['title']}]({paper['link']})",
         ""
     ]
-    
+
     if with_translation and "summary_ja" in paper:
         parts.append(paper["summary_ja"])
     else:
         parts.append(paper["summary"])
-        
+
     parts.append("")
     return "\n".join(parts)
 
 def _format_other_papers_description(papers: List[Dict]) -> str:
     """Format a description containing all non-filtered papers."""
     parts = []
-    
+
     for p in papers:
         parts.append(_format_paper_entry(p, with_translation=False))
         parts.append("---")
-        
+
     return "\n".join(parts)
 
 def generate(filtered_papers: List[Dict], other_papers: List[Dict], path: str):
@@ -53,6 +53,6 @@ def generate(filtered_papers: List[Dict], other_papers: List[Dict], path: str):
         fe.description(_format_other_papers_description(other_papers))
 
     out = pathlib.Path(path)
-    out.parent.mkdir(parents=True, exist_ok=True)
+    # out.parent.mkdir(parents=True, exist_ok=True)
     fg.rss_file(out)
     logging.info("RSS written to %s", out)
