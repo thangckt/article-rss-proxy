@@ -1,5 +1,5 @@
 from __future__ import annotations
-import time, logging, requests, feedparser, datetime as dt
+import logging, requests, feedparser, datetime as dt
 from zoneinfo import ZoneInfo
 from typing import List, Dict
 
@@ -13,35 +13,37 @@ BASE_URL = ("http://export.arxiv.org/api/query?"
 
 JST = ZoneInfo("Asia/Tokyo")
 
-def _jst_range_for_last_cycle(now_utc: dt.datetime) -> tuple[int, int]:
+def jst_date_to_arxiv_range(today_jst):
     """
-    arXiv は JST10:00 更新。前日の10:00 ～ 今日の10:00 の 24h の論文を取得する。
+    arXivはJST9:00更新。前日の10:00~今日の10:00の24hの論文を取得するためのstringを返す。
     """
-    now_jst = now_utc.astimezone(JST)
-    today10 = now_jst.replace(hour=10, minute=0, second=0, microsecond=0)
-    yesterday10 = today10 - dt.timedelta(days=1)
-    
-    return int(yesterday10.timestamp()), int(today10.timestamp())
+    today_jst10 = today_jst.replace(hour=10, minute=0, second=0, microsecond=0)
+    end_utc = today_jst10.astimezone(dt.timezone.utc)
+    start_utc = end_utc - dt.timedelta(days=1)
 
-def fetch_new_papers() -> List[Dict]:
-    utc_now = dt.datetime.utcnow()
-    start, end = _jst_range_for_last_cycle(utc_now)
-    logging.info("Query window JST: %s - %s",
-                 dt.datetime.fromtimestamp(start, JST),
-                 dt.datetime.fromtimestamp(end,   JST))
-    papers: List[Dict] = []
+    return start_utc.strftime("%Y%m%d%H%M"), end_utc.strftime("%Y%m%d%H%M")
+
+def fetch_papers_for_date(date_jst):
+    start_str, end_str = jst_date_to_arxiv_range(date_jst)
+    papers = []
     for cat in CATEGORIES:
-        url = BASE_URL.format(cat=cat, start=start, end=end)
-        feed = feedparser.parse(requests.get(url, timeout=30).text)
-        for entry in feed.entries:
-            papers.append({
-                "id":      entry.id.split('/')[-1],
-                "title":   entry.title.strip(),
-                "link":    entry.link,
-                "summary": entry.summary.strip(),
-                "authors": [a.name for a in entry.authors],
-                "category": cat,
-                "updated": entry.updated
-            })
-    logging.info("Fetched %s papers", len(papers))
+        url = BASE_URL.format(cat=cat, start=start_str, end=end_str)
+        try:
+            response = requests.get(url, timeout=30)
+            feed = feedparser.parse(response.text)
+            for entry in feed.entries:
+                papers.append({
+                    "id": entry.id.split('/')[-1],
+                    "title": entry.title.strip(),
+                    "link": entry.link,
+                    "summary": entry.summary.strip(),
+                    "authors": [a.name for a in entry.authors],
+                    "category": cat,
+                    "updated": entry.updated
+                })
+
+            logging.info(f"Fetched {len(feed.entries)} papers for category {cat}")
+        except Exception as e:
+            logging.error(f"Error fetching papers for category {cat}: {e}")
+    logging.info(f"Total papers fetched: {len(papers)}")
     return papers
