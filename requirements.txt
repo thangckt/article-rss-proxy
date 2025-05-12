@@ -1,7 +1,0 @@
-feedgen
-requests
-feedparser
-beautifulsoup4
-python-dateutil
-google-genai        # Gemini SDK
-python-dotenv
