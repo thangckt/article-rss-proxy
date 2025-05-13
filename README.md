@@ -15,10 +15,7 @@ arXiv の論文を取得し、Gemini でフィルタリング・翻訳した上�
 
 ```bash
 # 環境構築
-conda create -n arxiv-rss python=3.12 && conda activate arxiv-rss
-
-# 依存パッケージのインストール
-pip install -r requirements.txt
+uv sync
 
 # 環境変数の設定
 # .env.example をコピーして .env を作成し、GEMINI_API_KEY を設定
@@ -30,7 +27,7 @@ cp .env.example .env
 
 ```bash
 # RSS フィードの生成
-python -m src.main
+uv run src/main.py
 # docs/index.xml が生成されます
 ```
 
