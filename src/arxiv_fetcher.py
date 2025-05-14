@@ -1,4 +1,5 @@
 from __future__ import annotations
+import re
 import logging, requests, feedparser, datetime as dt
 from zoneinfo import ZoneInfo
 from typing import List, Dict
@@ -34,7 +35,7 @@ def fetch_papers_for_date(date_jst):
             for entry in feed.entries:
                 papers.append({
                     "id": entry.id.split('/')[-1],
-                    "title": entry.title.strip(),
+                    "title": re.sub(r'\s+', ' ', entry.title).strip(),
                     "link": entry.link,
                     "summary": entry.summary.strip(),
                     "authors": [a.name for a in entry.authors],
@@ -45,5 +46,6 @@ def fetch_papers_for_date(date_jst):
             logging.info(f"Fetched {len(feed.entries)} papers for category {cat}")
         except Exception as e:
             logging.error(f"Error fetching papers for category {cat}: {e}")
-    logging.info(f"Total papers fetched: {len(papers)}")
-    return papers
+    unique_papers = list({paper["id"]: paper for paper in papers}.values())
+    logging.info(f"Total papers fetched: {len(unique_papers)}")
+    return unique_papers

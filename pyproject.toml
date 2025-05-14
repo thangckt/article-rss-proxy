@@ -19,8 +19,9 @@ dependencies = [
     "feedparser>=6.0",
     "beautifulsoup4>=4.12",
     "python-dateutil>=2.9",
-    "google-genai>=0.4.0",  # Gemini SDK
+    "google-genai>=0.4.0", # Gemini SDK
     "python-dotenv>=1.0",
+    "joblib>=1.5.0",
 ]
 
 [project.optional-dependencies]
@@ -28,6 +29,7 @@ dev = [
     "pytest",
     "black",
     "isort",
+    "jupyter>=1.1.1",
 ]
 
 [tool.hatch.build.targets.wheel]

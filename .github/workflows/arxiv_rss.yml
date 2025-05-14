@@ -22,7 +22,7 @@ jobs:
           
       - name: Install deps
         run: |
-          uv sync
+          uv sync --no-dev
 
       - name: Run generator
         env:

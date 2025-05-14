@@ -1,6 +1,9 @@
 import requests, logging
 from bs4 import BeautifulSoup
 from typing import List, Tuple, Dict
+from joblib import Parallel, delayed
+
+NJOBS = 8
 
 def _get_html_soup(arxiv_id: str) -> Tuple[int, BeautifulSoup]:
     url = f"https://arxiv.org/html/{arxiv_id}"
@@ -62,3 +65,9 @@ def extract(arxiv_id: str) -> Dict:
                     logging.error(f"Error processing affiliation element for paper {arxiv_id}: {e}")
 
     return {"figs": figs, "authors": sorted(authors), "affils": sorted(affils)}
+
+
+def extract_parallel(papers: list[dict]) -> list[dict]:
+    return Parallel(n_jobs=NJOBS, backend="threading")(
+        delayed(extract)(paper["id"]) for paper in papers
+    )

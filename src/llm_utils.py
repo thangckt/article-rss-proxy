@@ -1,30 +1,113 @@
-import logging, os, textwrap
+import json
+import logging, os
+import time
+import re
 from typing import Dict
 from google import genai
+import google.genai.errors
 from dotenv import load_dotenv
+from joblib import Parallel, delayed
 
 load_dotenv()
 _client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
-_SYSTEM_PROMPT = textwrap.dedent("""
-あなたは優秀な科学編集者です。次の条件にマッチする論文を「興味あり: yes/no」で答えてください。
-条件: AI4Science — 物理・化学・材料科学と機械学習や大規模言語モデルの融合研究
-""").strip()
 
-def _gemini(prompt: str) -> str:
-    res = _client.models.generate_content(
-        model="gemini-2.0-flash",
-        contents=prompt
+def ask_gemini(prompt: str, model: str) -> str:
+    """
+    model: 
+    - gemini-2.5-flash-preview-04-17: 10RPM 500 req/day
+    - gemini-2.0-flash: 15RPM 1500 req/day
+    """
+    for _ in range(5):
+        try:
+            res = _client.models.generate_content(
+                model=model,
+                contents=prompt,
+                config={"temperature": 0.0}
+            )
+            return res.text.strip()
+        except google.genai.errors.APIError as e:
+            if hasattr(e, "code") and e.code in [429, 500, 502, 503]:
+                logging.warning(f"Gemini API error: {e}")
+                delay = 30
+                if e.code == 429:
+                    details = getattr(e, "details", None)
+                    if details and isinstance(details, dict):
+                        error_details = details.get("error", {}).get("details", [])
+                        retry_delays = [d.get("retryDelay") for d in error_details if d.get("retryDelay")]
+                        if retry_delays:
+                            rd = retry_delays[0]
+                            m = re.match(r"^(\\d+)s$", rd)
+                            if m:
+                                delay = int(m.group(1)) or delay
+                logging.info(f"Retrying after {delay} seconds...")
+                time.sleep(delay)
+                continue
+            else:
+                raise
+    raise RuntimeError("Max retries exceeded.")
+
+
+FILTER_PROMPT = """\
+あなたの役割は論文のタイトルとAbstractを読んで、読者の興味を引くかどうかを判定することです。
+
+読者の関心領域は
+{INTERESTS}
+と多岐にわたります。
+
+以下に論文タイトルとAbstractのペアが複数与えられるのでyes/noで判定してください。返答はjson形式で
+{"0": "yes", "1": "no", ...}
+のようにしてください。
+----------
+"""
+
+INTERESTS = """\
+- DFT・MD・MCなどの計算化学手法を機械学習で高速化する研究
+- DFTの精度限界を超えるための新しい計算手法・機械学習手法の開発
+- 機械学習ポテンシャルを活用して材料の現象開明や探索を行う研究(この項目に関しては、機械学習ポテンシャルが関わらないものには興味がない)
+- 計算化学手法を活用して半導体デバイス中の材料の現象開明や探索を行う研究
+- 固相・液相・気相を問わず、合成レシピを計算化学で設計・予測する研究
+- LLMの材料研究への活用
+- LLMを用いた研究の自動化(アイデア生成・文献調査・コーディングエージェントなど)\
+"""
+
+BATCH_SIZE = 25
+MAX_NJOBS = 8
+
+
+def filter_batch(papers_batch: list[Dict]) -> list[bool]:
+    papers_batch_str = ""
+    for i, paper in enumerate(papers_batch):
+        papers_batch_str += f"[{i}] {paper['title'].replace("\n", "")}\nAbstract: {paper['summary']}\n----------\n"
+    res_batch = ask_gemini(FILTER_PROMPT.replace("{INTERESTS}", INTERESTS) + papers_batch_str, "gemini-2.5-flash-preview-04-17")
+    logging.info(res_batch)
+    res_batch_dict = json.loads(res_batch.replace("```json", "").replace("```", ""))
+    return [res_batch_dict.get(str(i), "no") == "yes" for i in range(len(papers_batch))]
+
+
+def filter_papers(papers: list[Dict]) -> list[bool]:
+    n_batches = (len(papers) + BATCH_SIZE - 1) // BATCH_SIZE
+    n_jobs = min(MAX_NJOBS, n_batches)
+
+    def _get_batch(idx):
+        start = BATCH_SIZE * idx
+        end = min(BATCH_SIZE * (idx + 1), len(papers))
+        return papers[start:end]
+
+    res = Parallel(n_jobs=n_jobs, backend="threading")(
+        delayed(filter_batch)(_get_batch(i)) for i in range(n_batches)
     )
-    return res.text.strip()
+    return sum(res, [])
 
-def is_relevant(paper: Dict) -> bool:
-    q = f"{_SYSTEM_PROMPT}\n---\nタイトル: {paper['title']}\n概要: {paper['summary']}\n---\n興味あり:"
-    ans = _gemini(q).lower()
-    logging.debug("Filter result for %s: %s", paper['id'], ans)
-    return "yes" in ans
 
 def translate_abstract(paper: Dict) -> str:
-    prompt = (f"以下の英語 Abstract を日本語に翻訳してください。\n"
+    prompt = (f"以下に論文のAbstractが与えられるので日本語に翻訳してください。翻訳結果のみを答えてください。\n"
               f"---\n{paper['summary']}\n---")
-    return _gemini(prompt)
+    return ask_gemini(prompt, "gemini-2.0-flash")
+
+
+def translate_abstracts(papers: list[Dict]) -> list[str]:
+    abstract_jas = Parallel(n_jobs=MAX_NJOBS, backend="threading")(
+        delayed(translate_abstract)(paper) for paper in papers
+    )
+    return abstract_jas
