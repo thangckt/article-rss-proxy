@@ -1,11 +1,13 @@
-import re
-import logging
-import requests
-import feedparser
-from datetime import timezone, timedelta
 from dataclasses import dataclass, field
+from datetime import timedelta, timezone
+import logging
+import re
+
+import feedparser
+import requests
 
 from src.config import CATEGORIES
+
 
 ARXIV_API_URL = ("http://export.arxiv.org/api/query?"
             "search_query=cat:{cat}+AND+submittedDate:[{start}+TO+{end}]"

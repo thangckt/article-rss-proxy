@@ -1,14 +1,17 @@
 import json
-import logging, os
-import time
+import logging
+import os
 import re
+import time
+
+from dotenv import load_dotenv
 from google import genai
 import google.genai.errors
-from dotenv import load_dotenv
-from joblib import Parallel, delayed
+from joblib import delayed, Parallel
 
-from src.config import INTERESTS, BATCH_SIZE, MAX_NJOBS
 from src.arxiv_fetcher import Paper
+from src.config import BATCH_SIZE, INTERESTS, MAX_NJOBS
+
 
 load_dotenv()
 _client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])

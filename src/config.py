@@ -1,6 +1,7 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+
 # for rss gen
 TODAY_JST = datetime.now(ZoneInfo("Asia/Tokyo"))
 DEPLOY_URL = "https://hommage-ebi.github.io/article-rss-proxy/"

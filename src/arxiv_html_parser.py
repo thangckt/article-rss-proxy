@@ -1,6 +1,8 @@
-import requests, logging
+import logging
+from typing import Dict, Tuple
+
 from bs4 import BeautifulSoup
-from typing import Tuple, Dict
+import requests
 
 
 def _get_arxiv_html_soup(arxiv_id: str) -> Tuple[int, BeautifulSoup]:

@@ -1,9 +1,10 @@
-from feedgen.feed import FeedGenerator
 import logging
 from pathlib import Path
 
-from src.config import DEPLOY_URL, TODAY_JST
+from feedgen.feed import FeedGenerator
+
 from src.arxiv_fetcher import Paper
+from src.config import DEPLOY_URL, TODAY_JST
 
 
 def generate_rss_file(pushing_papers: list[Paper], other_papers: list[Paper], xml_path: Path):
