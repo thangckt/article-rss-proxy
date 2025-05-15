@@ -8,6 +8,8 @@ import google.genai.errors
 from dotenv import load_dotenv
 from joblib import Parallel, delayed
 
+from src.config import INTERESTS, BATCH_SIZE, MAX_NJOBS
+
 load_dotenv()
 _client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
@@ -48,7 +50,7 @@ def ask_gemini(prompt: str, model: str) -> str:
     raise RuntimeError("Max retries exceeded.")
 
 
-FILTER_PROMPT = """\
+RECOMMEND_PROMPT = """\
 あなたの役割は論文のタイトルとAbstractを読んで、読者の興味を引くかどうかを判定することです。
 
 読者の関心領域は
@@ -61,31 +63,17 @@ FILTER_PROMPT = """\
 ----------
 """
 
-INTERESTS = """\
-- DFT・MD・MCなどの計算化学手法を機械学習で高速化する研究
-- DFTの精度限界を超えるための新しい計算手法・機械学習手法の開発
-- 機械学習ポテンシャルを活用して材料の現象開明や探索を行う研究(この項目に関しては、機械学習ポテンシャルが関わらないものには興味がない)
-- 計算化学手法を活用して半導体デバイス中の材料の現象開明や探索を行う研究
-- 固相・液相・気相を問わず、合成レシピを計算化学で設計・予測する研究
-- LLMの材料研究への活用
-- LLMを用いた研究の自動化(アイデア生成・文献調査・コーディングエージェントなど)\
-"""
 
-BATCH_SIZE = 25
-MAX_NJOBS = 8
-
-
-def filter_batch(papers_batch: list[Dict]) -> list[bool]:
+def recommend_batch(papers_batch: list[Dict]) -> list[bool]:
     papers_batch_str = ""
     for i, paper in enumerate(papers_batch):
         papers_batch_str += f"[{i}] {paper['title'].replace("\n", "")}\nAbstract: {paper['summary']}\n----------\n"
-    res_batch = ask_gemini(FILTER_PROMPT.replace("{INTERESTS}", INTERESTS) + papers_batch_str, "gemini-2.5-flash-preview-04-17")
-    logging.info(res_batch)
+    res_batch = ask_gemini(RECOMMEND_PROMPT.replace("{INTERESTS}", INTERESTS) + papers_batch_str, "gemini-2.5-flash-preview-04-17")
     res_batch_dict = json.loads(res_batch.replace("```json", "").replace("```", ""))
     return [res_batch_dict.get(str(i), "no") == "yes" for i in range(len(papers_batch))]
 
 
-def filter_papers(papers: list[Dict]) -> list[bool]:
+def recommend_papers(papers: list[Dict]) -> list[bool]:
     n_batches = (len(papers) + BATCH_SIZE - 1) // BATCH_SIZE
     n_jobs = min(MAX_NJOBS, n_batches)
 
@@ -95,19 +83,12 @@ def filter_papers(papers: list[Dict]) -> list[bool]:
         return papers[start:end]
 
     res = Parallel(n_jobs=n_jobs, backend="threading")(
-        delayed(filter_batch)(_get_batch(i)) for i in range(n_batches)
+        delayed(recommend_batch)(_get_batch(i)) for i in range(n_batches)
     )
     return sum(res, [])
 
 
 def translate_abstract(paper: Dict) -> str:
-    prompt = (f"以下に論文のAbstractが与えられるので日本語に翻訳してください。翻訳結果のみを答えてください。\n"
+    prompt = (f"以下を日本語に翻訳してください。翻訳結果のみを答えてください。\n"
               f"---\n{paper['summary']}\n---")
     return ask_gemini(prompt, "gemini-2.0-flash")
-
-
-def translate_abstracts(papers: list[Dict]) -> list[str]:
-    abstract_jas = Parallel(n_jobs=MAX_NJOBS, backend="threading")(
-        delayed(translate_abstract)(paper) for paper in papers
-    )
-    return abstract_jas

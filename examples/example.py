@@ -1,95 +1,116 @@
 #%%
 import logging
-import json
-import datetime as dt
+from datetime import datetime
 from zoneinfo import ZoneInfo
-
-import sys
 from pathlib import Path
-sys.path.append(str(Path(__file__).parent.parent.resolve()))
+from joblib import Parallel, delayed
 
-from src.arxiv_fetcher import fetch_papers_for_date
-from src.rss_generator import generate
+from src.config import MAX_NJOBS
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
 
-JST = ZoneInfo("Asia/Tokyo")
+YYMMDD = "250515"
 #%%
 """
 step1. fetch
 """
-papers = fetch_papers_for_date(dt.datetime(2025, 5, 14, tzinfo=JST))
+from src.arxiv_fetcher import fetch_papers_for_date
 
-# with open(Path(__file__).parent/"fetched_example_250501.jsonl", "w") as f:
-#     for paper in papers:
-#         json.dump(paper, f, ensure_ascii=False)
-#         f.write("\n")
+papers = fetch_papers_for_date(datetime.strptime(YYMMDD, "%y%m%d").replace(tzinfo=ZoneInfo("Asia/Tokyo")))
 
-# papers = []
-# with open(Path(__file__).parent/"fetched_example_250501.jsonl", "r", encoding="utf-8") as f:
-#     for line in f:
-#         paper = json.loads(line)
-#         papers.append(paper)
+print(len(papers))
 #%%
 """
-step2. filter
+step1.5. save and load
 """
-from src.llm_utils import filter_papers
+import json
 
-filter_bools = filter_papers(papers)
+with open(Path(__file__).parent/f"fetched_example_{YYMMDD}.jsonl", "w") as f:
+    for paper in papers:
+        json.dump(paper, f, ensure_ascii=False)
+        f.write("\n")
 
-for filter_bool, paper in zip(filter_bools, papers):
-    if filter_bool:
+papers = []
+with open(Path(__file__).parent/f"fetched_example_{YYMMDD}.jsonl", "r", encoding="utf-8") as f:
+    for line in f:
+        paper = json.loads(line)
+        papers.append(paper)
+#%%
+"""
+step2. recommend
+"""
+from src.llm_utils import recommend_papers
+
+are_recommended = recommend_papers(papers)
+
+recommended_papers = []
+other_papers = []
+for is_recommended, paper in zip(are_recommended, papers):
+    if is_recommended:
+        recommended_papers.append(paper)
         print(f"yes: {paper['title']}")
     else:
+        other_papers.append(paper)
         print(f"no: {paper['title']}")
 
-filtered_papers = [paper for filter_bool, paper in zip(filter_bools, papers) if filter_bool]
-other_papers = [paper for filter_bool, paper in zip(filter_bools, papers) if not filter_bool]
+print(len(recommended_papers))
 #%%
 """
 step3. translate
 """
-from src.llm_utils import translate_abstracts
+from src.llm_utils import translate_abstract
 
-abstract_jas = translate_abstracts(filtered_papers)
-for abstract_ja, paper in zip(abstract_jas, filtered_papers):
+abstract_jas = Parallel(n_jobs=MAX_NJOBS, backend="threading")(
+    delayed(translate_abstract)(paper) for paper in recommended_papers
+)
+
+for abstract_ja, paper in zip(abstract_jas, recommended_papers):
+    paper["summary_ja"] = abstract_ja
     print(paper["title"])
     print(f"ja: {abstract_ja}")
     print("-----")
 
-for paper, abstract_ja in zip(filtered_papers, abstract_jas):
-    paper["summary_ja"] = abstract_ja
-translated_papers = filtered_papers
+translated_papers = recommended_papers
 
-# with open(Path(__file__).parent/"translated_example_250514.jsonl", "w") as f:
-#     for paper in translated_papers:
-#         json.dump(paper, f, ensure_ascii=False)
-#         f.write("\n")
+#%%
+"""
+step3.5. save and load
+"""
+import json
 
-# translated_papers = []
-# with open(Path(__file__).parent/"translated_example_250514.jsonl", "r", encoding="utf-8") as f:
-#     for line in f:
-#         paper = json.loads(line)
-#         translated_papers.append(paper)
+with open(Path(__file__).parent/f"translated_example_{YYMMDD}.jsonl", "w") as f:
+    for paper in translated_papers:
+        json.dump(paper, f, ensure_ascii=False)
+        f.write("\n")
+
+translated_papers = []
+with open(Path(__file__).parent/f"translated_example_{YYMMDD}.jsonl", "r", encoding="utf-8") as f:
+    for line in f:
+        paper = json.loads(line)
+        translated_papers.append(paper)
 #%%
 """
 step4. parse
 """
-from src.html_parser import extract_parallel
+from src.arxiv_html_parser import extract_fig1_authors_affils
 
-extracted_results = extract_parallel(translated_papers)
+extracted_results = Parallel(n_jobs=MAX_NJOBS, backend="threading")(
+    delayed(extract_fig1_authors_affils)(paper["id"]) for paper in papers
+    )
+
 for extracted, paper in zip(extracted_results, translated_papers):
-    paper["fig1"] = extracted["figs"][0]["src"] if extracted["figs"] else ""
+    paper["fig1"] = extracted["fig1"]
     paper["authors"] = extracted["authors"]
     paper["affils"] = extracted["affils"]
 
-
+pushing_papers = translated_papers
 #%%
 """
 step5. generate
 """
-generate(translated_papers, other_papers, Path(__file__).parent/"rss_example_250514.xml")
+from src.rss_generator import generate_rss_file
+
+generate_rss_file(pushing_papers, other_papers, Path(__file__).parent/f"rss_example_{YYMMDD}.xml")
 
 # %%

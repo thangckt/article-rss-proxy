@@ -1,30 +1,26 @@
 import requests, logging
 from bs4 import BeautifulSoup
-from typing import List, Tuple, Dict
-from joblib import Parallel, delayed
+from typing import Tuple, Dict
 
-NJOBS = 8
 
-def _get_html_soup(arxiv_id: str) -> Tuple[int, BeautifulSoup]:
-    url = f"https://arxiv.org/html/{arxiv_id}"
+def _get_arxiv_html_soup(arxiv_id: str) -> Tuple[int, BeautifulSoup]:
     try:
-        resp = requests.get(url, timeout=30)
-        logging.info(f"Fetched HTML for paper {arxiv_id}, status: {resp.status_code}")
+        resp = requests.get(f"https://arxiv.org/html/{arxiv_id}", timeout=30)
         return resp.status_code, BeautifulSoup(resp.text, 'html.parser')
     except Exception as e:
         logging.error(f"Failed to fetch HTML for paper {arxiv_id}: {e}")
         return 500, BeautifulSoup("", 'html.parser')
 
-def extract(arxiv_id: str) -> Dict:
-    status, soup = _get_html_soup(arxiv_id)
+
+def extract_fig1_authors_affils(arxiv_id: str) -> Dict:
+    status, soup = _get_arxiv_html_soup(arxiv_id)
     if status != 200:
-        return {"figs": [], "authors": [], "affils": []}
+        return {"fig1": "", "authors": [], "affils": []}
 
     figs = []
     try:
         figure_imgs = soup.select('.ltx_figure > img')
         figure_captions = soup.select('.ltx_figure > figcaption')
-        logging.info(f"Found {len(figure_imgs)} figures for paper {arxiv_id}")
         
         for img, cap in zip(figure_imgs, figure_captions):
             try:
@@ -36,14 +32,14 @@ def extract(arxiv_id: str) -> Dict:
                 logging.error(f"Error processing figure for paper {arxiv_id}: {e}")
     except Exception as e:
         logging.error(f"Error extracting figures for paper {arxiv_id}: {e}")
+    fig1 = figs[0] if figs else ""
 
     authors, affils = set(), set()
     section = soup.find('div', class_='ltx_authors')
     if section:
         person_spans = section.find_all('span', class_='ltx_personname')
-        logging.info(f"Found {len(person_spans)} author elements for paper {arxiv_id}")
         for p in person_spans:
-            if p:  # Check if p is not empty
+            if p:
                 try:
                     for t in p.find_all(['sup', 'span']): 
                         t.decompose()
@@ -54,9 +50,8 @@ def extract(arxiv_id: str) -> Dict:
                     logging.error(f"Error processing author element for paper {arxiv_id}: {e}")
             
         contact_spans = section.find_all('span', class_='ltx_contact')
-        logging.info(f"Found {len(contact_spans)} affiliation elements for paper {arxiv_id}")
         for c in contact_spans:
-            if c:  # Check if c is not empty
+            if c:
                 try:
                     txt = c.get_text(" ", strip=True)
                     if '@' not in txt.lower():
@@ -64,10 +59,4 @@ def extract(arxiv_id: str) -> Dict:
                 except Exception as e:
                     logging.error(f"Error processing affiliation element for paper {arxiv_id}: {e}")
 
-    return {"figs": figs, "authors": sorted(authors), "affils": sorted(affils)}
-
-
-def extract_parallel(papers: list[dict]) -> list[dict]:
-    return Parallel(n_jobs=NJOBS, backend="threading")(
-        delayed(extract)(paper["id"]) for paper in papers
-    )
+    return {"fig1": fig1, "authors": sorted(authors), "affils": sorted(affils)}
