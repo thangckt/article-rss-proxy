@@ -3,12 +3,56 @@ import logging
 import requests
 import feedparser
 from datetime import timezone, timedelta
+from dataclasses import dataclass, field
 
 from src.config import CATEGORIES
 
 ARXIV_API_URL = ("http://export.arxiv.org/api/query?"
             "search_query=cat:{cat}+AND+submittedDate:[{start}+TO+{end}]"
             "&start=0&max_results=1000")
+
+
+@dataclass
+class Paper:
+    id: str
+    title: str
+    link: str
+    summary: str
+    category: str
+    updated: str
+    summary_ja: str = ""
+    fig1: str = ""
+    authors: list = field(default_factory=list)
+    affils: list = field(default_factory=list)
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "title": self.title,
+            "link": self.link,
+            "summary": self.summary,
+            "category": self.category,
+            "updated": self.updated,
+            "summary_ja": self.summary_ja,
+            "fig1": self.fig1,
+            "authors": self.authors,
+            "affils": self.affils,
+        }
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "Paper":
+        return cls(
+            id=d["id"],
+            title=d["title"],
+            link=d["link"],
+            summary=d["summary"],
+            category=d["category"],
+            updated=d["updated"],
+            summary_ja=d.get("summary_ja", ""),
+            fig1=d.get("fig1", ""),
+            authors=d.get("authors", []),
+            affils=d.get("affils", []),
+        )
 
 
 def jst_date_to_arxiv_range(date_jst):
@@ -21,7 +65,7 @@ def jst_date_to_arxiv_range(date_jst):
     return start_utc.strftime("%Y%m%d%H%M"), end_utc.strftime("%Y%m%d%H%M")
 
 
-def fetch_papers_for_date(date_jst):
+def fetch_papers_for_date(date_jst) -> list[Paper]:
     start_str, end_str = jst_date_to_arxiv_range(date_jst)
     papers = []
     for cat in CATEGORIES:
@@ -30,16 +74,22 @@ def fetch_papers_for_date(date_jst):
             response = requests.get(url, timeout=30)
             feed = feedparser.parse(response.text)
             for entry in feed.entries:
-                papers.append({
-                    "id": entry.id.split('/')[-1],
-                    "title": re.sub(r'\s+', ' ', entry.title).strip(),
-                    "link": entry.link,
-                    "summary": entry.summary.strip(),
-                    "authors": [a.name for a in entry.authors],
-                    "category": cat,
-                    "updated": entry.updated
-                })
+                paper = Paper(
+                    id=entry.id.split('/')[-1],
+                    title=re.sub(r'\s+', ' ', entry.title).strip(),
+                    link=entry.link,
+                    summary=entry.summary.strip(),
+                    authors=[a.name for a in entry.authors],
+                    category=cat,
+                    updated=entry.updated
+                )
+                papers.append(paper)
         except Exception as e:
             logging.error(f"Error fetching papers for category {cat}: {e}")
-    unique_papers = list({paper["id"]: paper for paper in papers}.values())
+    seen = set()
+    unique_papers = []
+    for paper in papers:
+        if paper.id not in seen:
+            unique_papers.append(paper)
+            seen.add(paper.id)
     return unique_papers

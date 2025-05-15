@@ -1,12 +1,12 @@
 from feedgen.feed import FeedGenerator
-from typing import List, Dict
 import logging
 from pathlib import Path
 
 from src.config import DEPLOY_URL, TODAY_JST
+from src.arxiv_fetcher import Paper
 
 
-def generate_rss_file(pushing_papers: List[Dict], other_papers: List[Dict], xml_path: Path):
+def generate_rss_file(pushing_papers: list[Paper], other_papers: list[Paper], xml_path: Path):
     fg = FeedGenerator()
     fg.id(DEPLOY_URL)
     fg.link(href=DEPLOY_URL, rel="alternate")
@@ -17,27 +17,27 @@ def generate_rss_file(pushing_papers: List[Dict], other_papers: List[Dict], xml_
 
     for p in pushing_papers:
         fe = fg.add_entry()
-        fe.id(p["id"])
-        fe.title(p["title"])
-        fe.link(href=p["link"])
-        fe.pubDate(p["updated"])
+        fe.id(p.id)
+        fe.title(p.title)
+        fe.link(href=p.link)
+        fe.pubDate(p.updated)
         fe.description(
-            p.get("summary_ja", p["summary"])
-            + "\n\n" + f'<img src="{p["fig1"]}"/>'
-            + "<p>" + ", ".join(p["authors"]) + "</p>"
-            + "<p>" + "\n".join(p["affils"]) + "</p>"
+            (p.summary_ja if p.summary_ja else p.summary)
+            + "\n\n" + f'<img src="{p.fig1}"/>'
+            + "<p>" + ", ".join(p.authors) + "</p>"
+            + "<p>" + "\n".join(p.affils) + "</p>"
         )
 
     if other_papers:
         fe = fg.add_entry()
-        fe.id("other-papers")
+        fe.id(f"other-papers-{TODAY_JST.strftime('%Y-%m-%d')}")
         fe.title(f"other arxiv papers {TODAY_JST.strftime('%Y-%m-%d')}")
-        fe.link(href="https://arxiv.org")
+        fe.link(href=f"https://arxiv.org/{TODAY_JST.strftime('%Y-%m-%d')}") # dummy
         fe.pubDate(TODAY_JST)
         fe.description(
             "<ol>\n<li>"
             + "</li>\n<li>".join(
-                [f'<a href="{p['link']}">{p['title']}</a>' for p in other_papers]
+                [f'<a href="{p.link}">{p.title}</a>' for p in other_papers]
             )
             + "</li>\n</ol>"
         )

@@ -15,11 +15,11 @@ YYMMDD = "250515"
 """
 step1. fetch
 """
-from src.arxiv_fetcher import fetch_papers_for_date
+from src.arxiv_fetcher import fetch_papers_for_date, Paper
 
-papers = fetch_papers_for_date(datetime.strptime(YYMMDD, "%y%m%d").replace(tzinfo=ZoneInfo("Asia/Tokyo")))
+fetched_papers = fetch_papers_for_date(datetime.strptime(YYMMDD, "%y%m%d").replace(tzinfo=ZoneInfo("Asia/Tokyo")))
 
-print(len(papers))
+print(len(fetched_papers))
 #%%
 """
 step1.5. save and load
@@ -27,32 +27,31 @@ step1.5. save and load
 import json
 
 with open(Path(__file__).parent/f"fetched_example_{YYMMDD}.jsonl", "w") as f:
-    for paper in papers:
-        json.dump(paper, f, ensure_ascii=False)
+    for paper in fetched_papers:
+        json.dump(paper.to_dict(), f, ensure_ascii=False)
         f.write("\n")
 
-papers = []
+fetched_papers = []
 with open(Path(__file__).parent/f"fetched_example_{YYMMDD}.jsonl", "r", encoding="utf-8") as f:
     for line in f:
-        paper = json.loads(line)
-        papers.append(paper)
+        fetched_papers.append(Paper.from_dict(json.loads(line)))
 #%%
 """
 step2. recommend
 """
 from src.llm_utils import recommend_papers
 
-are_recommended = recommend_papers(papers)
+are_recommended = recommend_papers(fetched_papers)
 
 recommended_papers = []
 other_papers = []
-for is_recommended, paper in zip(are_recommended, papers):
+for is_recommended, paper in zip(are_recommended, fetched_papers):
     if is_recommended:
         recommended_papers.append(paper)
-        print(f"yes: {paper['title']}")
+        print(f"yes: {paper.title}")
     else:
         other_papers.append(paper)
-        print(f"no: {paper['title']}")
+        print(f"no: {paper.title}")
 
 print(len(recommended_papers))
 #%%
@@ -66,8 +65,8 @@ abstract_jas = Parallel(n_jobs=MAX_NJOBS, backend="threading")(
 )
 
 for abstract_ja, paper in zip(abstract_jas, recommended_papers):
-    paper["summary_ja"] = abstract_ja
-    print(paper["title"])
+    paper.summary_ja = abstract_ja
+    print(paper.title)
     print(f"ja: {abstract_ja}")
     print("-----")
 
@@ -77,17 +76,15 @@ translated_papers = recommended_papers
 """
 step3.5. save and load
 """
-import json
-
 with open(Path(__file__).parent/f"translated_example_{YYMMDD}.jsonl", "w") as f:
     for paper in translated_papers:
-        json.dump(paper, f, ensure_ascii=False)
+        json.dump(paper.to_dict(), f, ensure_ascii=False)
         f.write("\n")
 
 translated_papers = []
 with open(Path(__file__).parent/f"translated_example_{YYMMDD}.jsonl", "r", encoding="utf-8") as f:
     for line in f:
-        paper = json.loads(line)
+        paper = Paper.from_dict(json.loads(line))
         translated_papers.append(paper)
 #%%
 """
@@ -96,13 +93,13 @@ step4. parse
 from src.arxiv_html_parser import extract_fig1_authors_affils
 
 extracted_results = Parallel(n_jobs=MAX_NJOBS, backend="threading")(
-    delayed(extract_fig1_authors_affils)(paper["id"]) for paper in papers
-    )
+    delayed(extract_fig1_authors_affils)(paper.id) for paper in translated_papers
+)
 
 for extracted, paper in zip(extracted_results, translated_papers):
-    paper["fig1"] = extracted["fig1"]
-    paper["authors"] = extracted["authors"]
-    paper["affils"] = extracted["affils"]
+    paper.fig1 = extracted["fig1"]
+    paper.authors = extracted["authors"]
+    paper.affils = extracted["affils"]
 
 pushing_papers = translated_papers
 #%%

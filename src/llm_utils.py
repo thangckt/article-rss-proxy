@@ -2,13 +2,13 @@ import json
 import logging, os
 import time
 import re
-from typing import Dict
 from google import genai
 import google.genai.errors
 from dotenv import load_dotenv
 from joblib import Parallel, delayed
 
 from src.config import INTERESTS, BATCH_SIZE, MAX_NJOBS
+from src.arxiv_fetcher import Paper
 
 load_dotenv()
 _client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
@@ -64,16 +64,16 @@ RECOMMEND_PROMPT = """\
 """
 
 
-def recommend_batch(papers_batch: list[Dict]) -> list[bool]:
+def recommend_batch(papers_batch: list[Paper]) -> list[bool]:
     papers_batch_str = ""
     for i, paper in enumerate(papers_batch):
-        papers_batch_str += f"[{i}] {paper['title'].replace("\n", "")}\nAbstract: {paper['summary']}\n----------\n"
+        papers_batch_str += f"[{i}] {paper.title.replace('\n', ' ')}\nAbstract: {paper.summary}\n----------\n"
     res_batch = ask_gemini(RECOMMEND_PROMPT.replace("{INTERESTS}", INTERESTS) + papers_batch_str, "gemini-2.5-flash-preview-04-17")
     res_batch_dict = json.loads(res_batch.replace("```json", "").replace("```", ""))
     return [res_batch_dict.get(str(i), "no") == "yes" for i in range(len(papers_batch))]
 
 
-def recommend_papers(papers: list[Dict]) -> list[bool]:
+def recommend_papers(papers: list[Paper]) -> list[bool]:
     n_batches = (len(papers) + BATCH_SIZE - 1) // BATCH_SIZE
     n_jobs = min(MAX_NJOBS, n_batches)
 
@@ -88,7 +88,7 @@ def recommend_papers(papers: list[Dict]) -> list[bool]:
     return sum(res, [])
 
 
-def translate_abstract(paper: Dict) -> str:
+def translate_abstract(paper: Paper) -> str:
     prompt = (f"以下を日本語に翻訳してください。翻訳結果のみを答えてください。\n"
-              f"---\n{paper['summary']}\n---")
+              f"---\n{paper.summary}\n---")
     return ask_gemini(prompt, "gemini-2.0-flash")

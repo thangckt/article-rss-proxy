@@ -32,7 +32,7 @@ def extract_fig1_authors_affils(arxiv_id: str) -> Dict:
                 logging.error(f"Error processing figure for paper {arxiv_id}: {e}")
     except Exception as e:
         logging.error(f"Error extracting figures for paper {arxiv_id}: {e}")
-    fig1 = figs[0] if figs else ""
+    fig1 = figs[0]["src"] if figs else ""
 
     authors, affils = set(), set()
     section = soup.find('div', class_='ltx_authors')
