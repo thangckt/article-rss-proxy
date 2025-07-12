@@ -62,11 +62,13 @@ RECOMMEND_PROMPT = """\
 """
 
 
-def recommend_batch(papers_batch: list[Paper]) -> list[bool]:
+def recommend_batch(papers_batch: list[Paper], wait=True) -> list[bool]:
     papers_batch_str = ""
     for i, paper in enumerate(papers_batch):
         papers_batch_str += f"[{i}] {paper.title.replace('\n', ' ')}\nAbstract: {paper.summary}\n----------\n"
     res_batch = ask_gemini(RECOMMEND_PROMPT.replace("{INTERESTS}", INTERESTS) + papers_batch_str, "gemini-2.5-flash")
+    if wait:
+        time.sleep(60)
     res_batch_dict = json.loads(res_batch.replace("```json", "").replace("```", ""))
     return [res_batch_dict.get(str(i), "no") == "yes" for i in range(len(papers_batch))]
 
@@ -86,7 +88,10 @@ def recommend_papers(papers: list[Paper]) -> list[bool]:
     return sum(res, [])
 
 
-def translate_abstract(paper: Paper) -> str:
+def translate_abstract(paper: Paper, wait=True) -> str:
     prompt = (f"以下を日本語に翻訳してください。翻訳結果のみを答えてください。\n"
               f"---\n{paper.summary}\n---")
-    return ask_gemini(prompt, "gemini-2.0-flash")
+    translated = ask_gemini(prompt, "gemini-2.0-flash")
+    if wait:
+        time.sleep(60)
+    return translated
