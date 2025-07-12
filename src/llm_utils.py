@@ -23,7 +23,7 @@ def ask_gemini(prompt: str, model: str) -> str:
     - gemini-2.5-flash: 10RPM 500 req/day
     - gemini-2.0-flash: 15RPM 1500 req/day
     """
-    for _ in range(5):
+    for _ in range(10):
         try:
             res = _client.models.generate_content(
                 model=model,
@@ -34,7 +34,7 @@ def ask_gemini(prompt: str, model: str) -> str:
         except google.genai.errors.APIError as e:
             if hasattr(e, "code") and e.code in [429, 500, 502, 503]:
                 logging.warning(f"Gemini API error: {e}")
-                delay = 30
+                delay = 40
                 if e.code == 429:
                     details = getattr(e, "details", None)
                     if details and isinstance(details, dict):
