@@ -20,7 +20,7 @@ _client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 def ask_gemini(prompt: str, model: str) -> str:
     """
     model: 
-    - gemini-2.5-flash-preview-04-17: 10RPM 500 req/day
+    - gemini-2.5-flash: 10RPM 500 req/day
     - gemini-2.0-flash: 15RPM 1500 req/day
     """
     for _ in range(5):
@@ -71,7 +71,7 @@ def recommend_batch(papers_batch: list[Paper]) -> list[bool]:
     papers_batch_str = ""
     for i, paper in enumerate(papers_batch):
         papers_batch_str += f"[{i}] {paper.title.replace('\n', ' ')}\nAbstract: {paper.summary}\n----------\n"
-    res_batch = ask_gemini(RECOMMEND_PROMPT.replace("{INTERESTS}", INTERESTS) + papers_batch_str, "gemini-2.5-flash-preview-04-17")
+    res_batch = ask_gemini(RECOMMEND_PROMPT.replace("{INTERESTS}", INTERESTS) + papers_batch_str, "gemini-2.5-flash")
     res_batch_dict = json.loads(res_batch.replace("```json", "").replace("```", ""))
     return [res_batch_dict.get(str(i), "no") == "yes" for i in range(len(papers_batch))]
 

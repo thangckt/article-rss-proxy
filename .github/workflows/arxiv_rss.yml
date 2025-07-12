@@ -2,8 +2,8 @@ name: arXiv daily RSS
 
 on:
   schedule:
-    # 11:00 JST = 02:00 UTC
-    - cron:  '0 2 * * *'
+    # 11:17 JST = 02:17 UTC
+    - cron:  '17 2 * * *'
   workflow_dispatch:
 
 jobs:

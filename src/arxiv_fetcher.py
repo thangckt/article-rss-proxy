@@ -60,10 +60,12 @@ class Paper:
 def jst_date_to_arxiv_range(date_jst):
     """
     arXivはJST10:00更新。前日の11:00~今日の11:00の24hの論文を取得するためのstringを返す。
+    火曜日の場合は金曜11:00~
     """
     date_jst11 = date_jst.replace(hour=11, minute=0, second=0, microsecond=0)
     end_utc = date_jst11.astimezone(timezone.utc)
-    start_utc = end_utc - timedelta(days=1)
+    days_back = 4 if date_jst.weekday() == 1 else 1
+    start_utc = end_utc - timedelta(days=days_back)
     return start_utc.strftime("%Y%m%d%H%M"), end_utc.strftime("%Y%m%d%H%M")
 
 
