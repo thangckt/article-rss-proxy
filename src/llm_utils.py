@@ -34,17 +34,12 @@ def ask_gemini(prompt: str, model: str) -> str:
         except google.genai.errors.APIError as e:
             if hasattr(e, "code") and e.code in [429, 500, 502, 503]:
                 logging.warning(f"Gemini API error: {e}")
-                delay = 40
+                delay = 60
                 if e.code == 429:
-                    details = getattr(e, "details", None)
-                    if details and isinstance(details, dict):
-                        error_details = details.get("error", {}).get("details", [])
-                        retry_delays = [d.get("retryDelay") for d in error_details if d.get("retryDelay")]
-                        if retry_delays:
-                            rd = retry_delays[0]
-                            m = re.match(r"^(\\d+)s$", rd)
-                            if m:
-                                delay = int(m.group(1)) or delay
+                    try:
+                        delay = int(e.details["error"]["details"][-1]["retryDelay"][:-1])+1
+                    except Exception as e2:
+                        logging.warning(f"Failed to parse retry delay: {e2}. Using default {delay} seconds.")
                 logging.info(f"Retrying after {delay} seconds...")
                 time.sleep(delay)
                 continue
