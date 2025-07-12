@@ -5,6 +5,11 @@ on:
     # 11:17 JST = 02:17 UTC
     - cron:  '17 2 * * *'
   workflow_dispatch:
+    inputs:
+      yymmdd:
+        description: '日付 (YYMMDD format, e.g., 250520)'
+        required: false
+        type: string
 
 jobs:
   build-and-push:
@@ -28,7 +33,11 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          uv run src/main.py
+          if [ -n "${{ github.event.inputs.yymmdd }}" ]; then
+            uv run src/main.py --yymmdd "${{ github.event.inputs.yymmdd }}"
+          else
+            uv run src/main.py
+          fi
 
       # 生成ファイルをコミット
       - name: Commit & push RSS
