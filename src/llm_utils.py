@@ -66,7 +66,7 @@ def recommend_batch(papers_batch: list[Paper], wait=True) -> list[bool]:
     papers_batch_str = ""
     for i, paper in enumerate(papers_batch):
         papers_batch_str += f"[{i}] {paper.title.replace('\n', ' ')}\nAbstract: {paper.summary}\n----------\n"
-    res_batch = ask_gemini(RECOMMEND_PROMPT.replace("{INTERESTS}", INTERESTS) + papers_batch_str, "gemini-2.5-flash")
+    res_batch = ask_gemini(RECOMMEND_PROMPT.replace("{INTERESTS}", INTERESTS) + papers_batch_str, "gemini-2.5-flash-preview-04-17")
     if wait:
         time.sleep(60)
     res_batch_dict = json.loads(res_batch.replace("```json", "").replace("```", ""))
