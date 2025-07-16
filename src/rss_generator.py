@@ -20,7 +20,7 @@ def generate_rss_file(pushing_papers: list[Paper], other_papers: list[Paper], xm
         fe = fg.add_entry()
         fe.id(p.id)
         fe.title(p.title)
-        fe.link(href=p.link)
+        fe.link(href=p.link.replace("arxiv.org/abs", "alphaxiv.org/overview"))
         fe.pubDate(p.updated)
         fe.description(
             (p.summary_ja if p.summary_ja else p.summary)

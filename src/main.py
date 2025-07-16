@@ -48,7 +48,7 @@ def main():
     extracted_results = Parallel(n_jobs=MAX_NJOBS, backend="threading")(delayed(extract_fig1_authors_affils)(paper.id) for paper in translated_papers)
     for extracted, paper in zip(extracted_results, translated_papers):
         paper.fig1 = extracted["fig1"]
-        paper.authors = extracted["authors"]
+        paper.authors = extracted["authors"] if extracted["authors"] else paper.authors
         paper.affils = extracted["affils"]
     pushing_papers = translated_papers
     logging.info("Extract Done.")
