@@ -1,16 +1,16 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from dataclasses import dataclass, field
 from datetime import timedelta, timezone
 import logging
 import re
+from typing import TYPE_CHECKING
 
 import feedparser
 import requests
 
 from src.config import Config
+
 
 if TYPE_CHECKING:
     from datetime import datetime

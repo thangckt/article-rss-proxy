@@ -1,7 +1,6 @@
 import json
 import logging
 import os
-import re
 import time
 
 from dotenv import load_dotenv
@@ -10,7 +9,7 @@ import google.genai.errors
 from joblib import delayed, Parallel
 
 from src.arxiv_fetcher import Paper
-from src.config import MAX_NJOBS, Config
+from src.config import Config, MAX_NJOBS
 
 
 load_dotenv()

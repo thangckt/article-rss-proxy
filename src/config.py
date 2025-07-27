@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+
 MAX_NJOBS = 8
 
 # for rss gen

@@ -1,19 +1,20 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-import logging
-from datetime import datetime
-from zoneinfo import ZoneInfo
-from pathlib import Path
-from joblib import Parallel, delayed
 import argparse
+from datetime import datetime
+import logging
+from pathlib import Path
+from typing import TYPE_CHECKING
+from zoneinfo import ZoneInfo
 
-from src.config import MAX_NJOBS, TODAY_JST
+from joblib import delayed, Parallel
+
 from src.arxiv_fetcher import fetch_papers_for_date
-from src.llm_utils import recommend_papers
-from src.llm_utils import translate_abstract
 from src.arxiv_html_parser import extract_fig1_authors_affils
+from src.config import MAX_NJOBS, TODAY_JST
+from src.llm_utils import recommend_papers, translate_abstract
 from src.rss_generator import generate_rss_file
+
 
 if TYPE_CHECKING:
     from src.arxiv_fetcher import Paper
@@ -67,7 +68,7 @@ def main():
     logging.info("Extract Done.")
 
     generate_rss_file(
-        pushing_papers, other_papers, Path(__file__).parent.parent / f"docs/index.xml"
+        pushing_papers, other_papers, Path(__file__).parent.parent / "docs/index.xml"
     )
 
 
