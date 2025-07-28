@@ -1,13 +1,12 @@
 name: arXiv daily RSS
 
 on:
-  schedule:
-    # 11:17 JST = 02:17 UTC
-    - cron:  '17 2 * * *'
-  workflow_dispatch:
+  schedule:                # Scheduled trigger
+    - cron:  '0 22 * * *'  #  22:00 UTC = 07:00 AM KST (Asia/Seoul = UTC+9)
+  workflow_dispatch:       # Manual trigger
     inputs:
       yymmdd:
-        description: '日付 (YYMMDD format, e.g., 250520)'
+        description: 'Date (YYMMDD format, e.g., 250520)'
         required: false
         type: string
 
@@ -15,7 +14,7 @@ jobs:
   build-and-push:
     runs-on: ubuntu-latest
     env:
-      TZ: Asia/Tokyo
+      TZ: Asia/Seoul
     steps:
       - uses: actions/checkout@v4
 
@@ -39,7 +38,7 @@ jobs:
             uv run src/main.py
           fi
 
-      # 生成ファイルをコミット
+      # Commit the generated files
       - name: Commit & push RSS
         uses: EndBug/add-and-commit@v9
         with:
