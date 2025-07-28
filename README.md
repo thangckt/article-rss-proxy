@@ -1,49 +1,49 @@
 # article-rss-proxy
 
-arXivの論文を取得し、Geminiでフィルタリング・翻訳した上でRSS フィードとして配信するツールです。
+A tool that fetches papers from arXiv, filters and translates them using Gemini, and delivers them as an RSS feed.
 
-## 特徴
+## Features
 
-- arXiv APIから指定カテゴリの論文を取得
-- Gemini APIを使用して興味のある論文のみにフィルタリング
-- 英語のAbstractを日本語に翻訳
-- 論文の図・著者・所属情報を取得
-- RSSフィードとして配信（GitHub Pages）
-- GitHub Actionsによる自動更（毎日11:17JST）
+- Fetches papers from specific categories via the arXiv API
+- Filters papers using the Gemini API to include only those of interest
+- Translates English abstracts into Japanese
+- Retrieves figures, authors, and affiliation information
+- Publishes as an RSS feed via GitHub Pages
+- Automatically updates daily at 7:00 KST via GitHub Actions
 
-## セットアップ
+## Setup
 
 ```bash
-# 環境構築
+# Set up the environment
 uv sync
 
-# 環境変数の設定
-# .env.example をコピーして .env を作成し、GEMINI_API_KEY を設定
+# Configure environment variables
+# Copy .env.example to .env and set GEMINI_API_KEY
 cp .env.example .env
-# .env ファイルを編集して API キーを設定
+# Then edit the .env file to set your API key
 ```
 
-## 使用方法
+## Usage
 
 ```bash
-# RSS フィードの生成
+# Generate the RSS feed
 uv run src/main.py
-# docs/index.xml が生成されます
+# This will generate docs/index.xml
 ```
 
-## GitHub Pages での配信
+## Publishing via GitHub Pages
 
-1. gh-pagesブランチを作成
+1. Create a `gh-pages` branch
 
-2. リポジトリの Settings > Pages で以下を設定:
-   - Source: Deploy from a branch
-   - Branch: gh-pages
-   - Folder: /docs
+2. In your repository, go to `Settings` > `Pages` and set:
+- Source: Deploy from a branch
+- Branch: `gh-pages`
+- Folder: `/docs`
 
-3. 設定後、RSS フィードは以下の URL で配信されます:
-   `https://<user>.github.io/article-rss-proxy/index.xml`
+3. After setting it up, the RSS feed will be available at:
+`https://<user>.github.io/article-rss-proxy/index.xml`
 
-## 自動更新
+## Automatic Updates
 
-デフォルトでは GitHub Actions により毎日 11:17 JST (02:17 UTC) に自動更新されます。
-必要に応じて `.github/workflows/arxiv_rss.yml` のスケジュールやフィルタ条件を調整してください。
+By default, GitHub Actions automatically updates the feed daily at 11:17 JST (02:17 UTC).
+Adjust the schedule or filtering criteria in .github/workflows/arxiv_rss.yml if needed.
